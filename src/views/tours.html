@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>College Tours - Find Your Perfect Campus</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="/custom.css" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        #loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #09f;
+            animation: spin 1s ease infinite;
+            margin-right: 1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            background-color: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgb(239, 68, 68);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+        }
+        
+        /* For demo tours when API fails */
+        .tour-card {
+            transition: all 0.3s ease;
+        }
+        .tour-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .college-image {
+            height: 180px;
+            object-fit: cover;
+            width: 100%;
+            border-top-left-radius: 0.5rem;
+            border-top-right-radius: 0.5rem;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-right: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        
+        .search-container {
+            position: relative;
+        }
+        
+        .search-container input {
+            padding-left: 2.5rem;
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 0.75rem;
+            top: 0.75rem;
+            color: #9CA3AF;
+            pointer-events: none;
+        }
+        
+        #noResults {
+            padding: 2rem;
+            text-align: center;
+            background-color: rgba(30, 41, 59, 0.5);
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body class="bg-black text-white">
+    <!-- Navigation -->
+    <nav class="bg-gray-800 p-4">
+        <div class="w-full mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold">College Tours</h1>
+            <div class="flex items-center">
+                <a href="index.html" class="text-gray-150 hover:text-blue-400 mr-4">Home</a>
+                <button id="logout" class="text-gray-150 hover:text-red-400 mr-4">Logout</button>
+                <button id="theme-toggle" class="ml-6 px-6 py-2 rounded-lg bg-yellow-500 text-white hover:bg-opacity-90 flex items-center space-x-2 text-lg font-medium transition-all duration-300">
+                    <span id="theme-icon"></span>
+                    <span id="theme-text">Light Theme</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="w-full px-4 py-8">
+        <!-- Header and Search Bar -->
+        <div class="mb-8">
+            <h2 class="text-3xl font-bold mb-6 text-center">Available College Tours</h2>
+            
+            <div class="search-container w-full max-w-full">
+                <div class="search-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    placeholder="Search for colleges by name, location, or type..." 
+                    class="w-full p-4 text-lg rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-400 focus:outline-none">
+            </div>
+        </div>
+        
+        <div id="loading" class="w-full">
+            <!-- <div class="spinner"></div>
+            <span>Loading college tours...</span>
+        </div> -->
+        
+        <!-- Error message container -->
+        <div id="errorContainer" class="hidden w-full"></div>
+        
+        <!-- No results message -->
+        <div id="noResults" class="hidden w-full">
+            <p>No colleges match your search. Try different keywords.</p>
+        </div>
+        
+        <!-- Grid of tours - Enhanced layout without map -->
+        <div id="toursList" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 hidden w-full">
+            <!-- Tours will be dynamically populated here in a grid -->
+        </div>
+
+        <!-- Tour Details Modal -->
+        <div id="tourModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden z-50">
+            <div class="bg-gray-800 p-6 rounded-lg max-w-2xl w-full">
+                <div class="flex justify-between items-start mb-4">
+                    <h3 id="modalTitle" class="text-2xl font-bold"></h3>
+                    <button id="closeModal" class="text-gray-400 hover:text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="md:col-span-1">
+                        <img id="modalImage" class="rounded-lg w-full object-cover" alt="College Image">
+                        
+                        <div class="mt-4">
+                            <h4 class="font-bold text-blue-400 mb-2">Quick Facts</h4>
+                            <div id="modalFacts" class="space-y-2 text-sm"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                        <p id="modalDescription" class="mb-6 text-gray-300"></p>
+                        
+                        <h4 class="font-bold text-blue-400 mb-2">Tour Information</h4>
+                        <div id="modalTourInfo" class="mb-6"></div>
+                        
+                        <button id="bookTourBtn" class="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-lg font-medium transition duration-300">
+                            Start This Tour
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Controls Modal -->
+        <div id="adminControlsModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden z-50">
+            <div class="bg-gray-800 p-6 rounded-lg max-w-2xl w-full">
+                <div class="flex justify-between items-start mb-4">
+                    <h3 class="text-2xl font-bold">Admin Controls</h3>
+                    <button id="closeAdminModal" class="text-gray-400 hover:text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                
+                <div id="adminNoCollege" class="hidden">
+                    <p class="mb-4">You haven't added your college yet. Add details below:</p>
+                    <form id="addCollegeForm">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block mb-2 text-sm">College Name</label>
+                                <input type="text" id="collegeName" class="w-full p-2 bg-gray-700 text-white border border-gray-600 rounded" required>
+                            </div>
+                            <div>
+                                <label class="block mb-2 text-sm">Short Name</label>
+                                <input type="text" id="collegeShortName" class="w-full p-2 bg-gray-700 text-white border border-gray-600 rounded" required>
+                            </div>
+                            <div>
+                                <label class="block mb-2 text-sm">Year Established</label>
+                                <input type="text" id="collegeEstablished" class="w-full p-2 bg-gray-700 text-white border border-gray-600 rounded" required>
+                            </div>
+                            <div>
+                                <label class="block mb-2 text-sm">Type</label>
+                                <input type="text" id="collegeType" class="w-full p-2 bg-gray-700 text-white border border-gray-600 rounded" required>
+                            </div>
+                            <div>
+                                <label class="block mb-2 text-sm">Students</label>
+                                <input type="text" id="collegeStudents" class="w-full p-2 bg-gray-700 text-white border border-gray-600 rounded" required>
+                            </div>
+                            <div>
+                                <label class="block mb-2 text-sm">Address</label>
+                                <input type="text" id="collegeAddress" class="w-full p-2 bg-gray-700 text-white border border-gray-600 rounded" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block mb-2 text-sm">Description</label>
+                            <textarea id="collegeDescription" rows="4" class="w-full p-2 bg-gray-700 text-white border border-gray-600 rounded" required></textarea>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block mb-2 text-sm">Tour Information</label>
+                            <textarea id="collegeTourInfo" rows="3" class="w-full p-2 bg-gray-700 text-white border border-gray-600 rounded" required></textarea>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block mb-2 text-sm">Image URL</label>
+                            <input type="url" id="collegeImage" class="w-full p-2 bg-gray-700 text-white border border-gray-600 rounded" required>
+                        </div>
+
+                        <!-- Add this to the college creation form in tours.html -->
+                        <div class="mb-4">
+                            <label class="block text-xl font-semibold mb-2">College Location</label>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Longitude</label>
+                                    <input type="number" id="collegeLongitude" name="longitude" step="0.000001" placeholder="77.6586" 
+                                           class="w-full p-2 rounded bg-gray-700 text-white focus:ring-2 focus:ring-blue-500">
+                                    <p class="text-xs text-gray-400 mt-1">Example: 77.6586 for east, -74.5 for west</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Latitude</label>
+                                    <input type="number" id="collegeLatitude" name="latitude" step="0.000001" placeholder="13.1184" 
+                                           class="w-full p-2 rounded bg-gray-700 text-white focus:ring-2 focus:ring-blue-500">
+                                    <p class="text-xs text-gray-400 mt-1">Example: 13.1184 for north, -33.8 for south</p>
+                                </div>
+                            </div>
+                            <div class="mt-3 bg-gray-700 p-3 rounded-md">
+                                <p class="text-sm">Don't know your college's coordinates?</p>
+                                <a href="https://www.latlong.net/" target="_blank" class="text-blue-400 hover:text-blue-300 flex items-center mt-1">
+                                    <span>Find coordinates</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end">
+                            <button type="submit" class="bg-green-600 hover:bg-green-500 px-6 py-2 rounded text-white">Add College</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <div id="adminHasCollege" class="hidden">
+                    <div class="mb-6">
+                        <h4 class="text-xl font-bold mb-2">Your College</h4>
+                        <div id="adminCollegeCard" class="bg-gray-700 p-4 rounded-lg"></div>
+                    </div>
+                    
+                    <div class="flex justify-between">
+                        <button id="editCollegeBtn" class="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded text-white">Edit Details</button>
+                        <button id="deleteCollegeBtn" class="bg-red-600 hover:bg-red-500 px-6 py-2 rounded text-white">Delete College</button>
+                    </div>
+                    
+                    <!-- Replace the existing editCollegeForm with this scrollable version -->
+
+<form id="editCollegeForm" class="hidden mt-6">
+    <h3 class="text-xl font-bold mb-3">Edit College Details</h3>
+    
+    <!-- Scrollable container for form fields -->
+    <div class="max-h-96 overflow-y-auto pr-2 mb-4" style="scrollbar-width: thin;">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+                <label class="block mb-2 text-sm">College Name</label>
+                <input type="text" id="editCollegeName" class="w-full p-2 bg-gray-700 text-white border border-gray-600 rounded" required>
+            </div>
+            <div>
+                <label class="block mb-2 text-sm">Short Name</label>
+                <input type="text" id="editCollegeShortName" class="w-full p-2 bg-gray-700 text-white border border-gray-600 rounded" required>
+            </div>
+            <div>
+                <label class="block mb-2 text-sm">Year Established</label>
+                <input type="text" id="editCollegeEstablished" class="w-full p-2 bg-gray-700 text-white border border-gray-600 rounded" required>
+            </div>
+            <div>
+                <label class="block mb-2 text-sm">Type</label>
+                <input type="text" id="editCollegeType" class="w-full p-2 bg-gray-700 text-white border border-gray-600 rounded" required>
+            </div>
+            <div>
+                <label class="block mb-2 text-sm">Students</label>
+                <input type="text" id="editCollegeStudents" class="w-full p-2 bg-gray-700 text-white border border-gray-600 rounded" required>
+            </div>
+            <div>
+                <label class="block mb-2 text-sm">Address</label>
+                <input type="text" id="editCollegeAddress" class="w-full p-2 bg-gray-700 text-white border border-gray-600 rounded" required>
+            </div>
+        </div>
+        
+        <div class="mb-4">
+            <label class="block mb-2 text-sm">Description</label>
+            <textarea id="editCollegeDescription" rows="4" class="w-full p-2 bg-gray-700 text-white border border-gray-600 rounded" required></textarea>
+        </div>
+        
+        <div class="mb-4">
+            <label class="block mb-2 text-sm">Tour Information</label>
+            <textarea id="editCollegeTourInfo" rows="3" class="w-full p-2 bg-gray-700 text-white border border-gray-600 rounded" required></textarea>
+        </div>
+        
+        <div class="mb-4">
+            <label class="block mb-2 text-sm">Image URL</label>
+            <input type="url" id="editCollegeImage" class="w-full p-2 bg-gray-700 text-white border border-gray-600 rounded" required>
+        </div>
+    </div>
+    
+    <!-- Buttons outside scrollable container -->
+    <div class="flex justify-end mt-2">
+        <button type="button" id="cancelEditBtn" class="bg-gray-600 hover:bg-gray-500 px-6 py-2 rounded text-white mr-2">Cancel</button>
+        <button type="submit" class="bg-green-600 hover:bg-green-500 px-6 py-2 rounded text-white">Save Changes</button>
+    </div>
+</form>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="../assets/scripts/theme.js"></script>
+    <script>
+        // Enhanced demo tours data with more college details
+        const demoTours = [
+            { 
+                id: 1, 
+                name: "Massachusetts Institute of Technology (MIT)",
+                shortName: "MIT",
+                description: "MIT is a private research university in Cambridge, Massachusetts, known for its rigorous academic programs in science and engineering. Our tour explores the modern Stata Center, historic Great Dome, student life at the Z-Center, and various engineering labs.",
+                location: [42.3601, -71.0942],
+                address: "77 Massachusetts Ave, Cambridge, MA 02139",
+                established: "1861",
+                type: "Private Research",
+                students: "11,500+",
+                tourInfo: "Tours available Monday-Friday at 10:00 AM and 2:00 PM. Advanced registration required.",
+                image: "https://news.mit.edu/sites/default/files/styles/news_item_image__1200x675_/public/images/202012/MIT-Dome-Sunset-001.jpg",
+                adminEmail: "kesav@admin.com" // Add admin email to track ownership
+            },
+            { 
+                id: 2, 
+                name: "Stanford University",
+                shortName: "Stanford",
+                description: "Located in the heart of California's Silicon Valley, Stanford University is one of the world's leading teaching and research institutions. Our comprehensive tour includes visits to the iconic Stanford Memorial Church, Hoover Tower, and the engineering quad.",
+                location: [37.4275, -122.1697],
+                address: "450 Serra Mall, Stanford, CA 94305",
+                established: "1885",
+                type: "Private Research",
+                students: "17,000+",
+                tourInfo: "Tours daily at 11:00 AM and 3:30 PM. Weekend tours available seasonally.",
+                image: "https://www.thoughtco.com/thmb/skqZQRLJJ9OYkQQhyriXHqoHKo8=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/stanford-university-memorial-church-185550091-5c6b444446e0fb00018d8ebb.jpg"
+            },
+            { 
+                id: 3, 
+                name: "Harvard University",
+                shortName: "Harvard",
+                description: "Harvard is the oldest institution of higher education in the United States, established in 1636. Our historical campus tour takes you through Harvard Yard, Widener Library, and gives insight into the university's rich legacy and student traditions.",
+                location: [42.3744, -71.1169],
+                address: "Massachusetts Hall, Cambridge, MA 02138",
+                established: "1636",
+                type: "Private Ivy League",
+                students: "23,000+",
+                tourInfo: "Historical tours available Tuesday-Sunday. Student-led tours available weekdays during academic terms.",
+                image: "https://www.harvard.edu/wp-content/uploads/2021/02/091520_Stock_KS_025-1200x630.jpeg"
+            },
+            { 
+                id: 4, 
+                name: "University of California, Berkeley",
+                shortName: "UC Berkeley",
+                description: "UC Berkeley is a public research university known for its academic excellence and history of social activism. Our tour showcases the Campanile (Sather Tower), Doe Library, the Berkeley Hills, and various research facilities.",
+                location: [37.8719, -122.2585],
+                address: "110 Sproul Hall, Berkeley, CA 94720",
+                established: "1868",
+                type: "Public Research",
+                students: "42,000+",
+                tourInfo: "Campus tours available daily, no reservation needed for groups under 10 people.",
+                image: "https://cdn.britannica.com/97/115097-050-00CFDBA6/Sather-Tower-Campanile-University-of-California-Berkeley.jpg"
+            },
+            { 
+                id: 5, 
+                name: "California Institute of Technology",
+                shortName: "Caltech",
+                description: "Caltech is a renowned science and engineering institute with a focus on research and innovation. Our specialized tour highlights the Jet Propulsion Laboratory, Beckman Auditorium, and various cutting-edge research facilities.",
+                location: [34.1377, -118.1253],
+                address: "1200 E California Blvd, Pasadena, CA 91125",
+                established: "1891",
+                type: "Private Research",
+                students: "2,200+",
+                tourInfo: "Small group tours available by appointment only. Special JPL tours require security clearance.",
+                image: "https://www.caltech.edu/sites/default/files/styles/slideshow_images_1920x993/public/2021-05/VirtualTour.jpg"
+            },
+            { 
+                id: 6, 
+                name: "University of Michigan",
+                shortName: "UMich",
+                description: "The University of Michigan in Ann Arbor is one of the foremost research universities in the United States. Our comprehensive tour includes Michigan Stadium ('The Big House'), the Law Quad, and the historic Central Campus.",
+                location: [42.2780, -83.7382],
+                address: "500 S State St, Ann Arbor, MI 48109",
+                established: "1817",
+                type: "Public Research",
+                students: "47,000+",
+                tourInfo: "Tours run Monday-Saturday with special game day tours during football season.",
+                image: "https://admissions.umich.edu/sites/default/files/Viewbook-SlideshowHeader-WideImg-06.jpg"
+            }
+        ];
+
+        let activeTours = [];
+        
+        // Check authentication status
+        function checkAuth() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                document.getElementById('loading').classList.add('hidden');
+                showError("You need to log in to view tours. <a href='login.html' class='text-blue-400 hover:underline'>Login here</a>");
+                return false;
+            }
+            return true;
+        }
+
+        // Modify the fetchTours function to filter tours for admins
+        async function fetchTours() {
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('toursList').classList.add('hidden');
+            document.getElementById('errorContainer').classList.add('hidden');
+            document.getElementById('noResults').classList.add('hidden');
+            
+            if (!checkAuth()) return;
+
+            try {
+                // Get tours from MongoDB via API
+                const response = await fetch('http://localhost:3000/api/tours', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                }
+                
+                const tours = await response.json();
+                
+                if (tours.length === 0) {
+                    // No tours in database - show admin message
+                    if (adminEmails.includes(localStorage.getItem('userEmail'))) {
+                        showWarning("No college tours in the database yet. As an admin, please add your college using the Admin Panel.");
+                    } else {
+                        showWarning("No college tours available at this time. Please check back later.");
+                    }
+                }
+                
+                // Filter tours for admins - they should only see their own college
+                currentUser = localStorage.getItem('userEmail');
+                if (adminEmails.includes(currentUser)) {
+                    // Admin users only see their own college
+                    activeTours = tours.filter(tour => tour.adminEmail === currentUser);
+                    
+                    if (activeTours.length === 0) {
+                        showWarning("You haven't added your college yet. Use the Admin Panel to add your college.");
+                    }
+                } else {
+                    // Regular users see all colleges
+                    activeTours = tours;
+                }
+                
+                displayTours(activeTours);
+            } catch (error) {
+                console.error('Error fetching tours:', error);
+                
+                if (adminEmails.includes(localStorage.getItem('userEmail'))) {
+                    // Special message for admins
+                    showError(`Database connection error. As an admin, you need to create your college tour when the database is available.`);
+                } else {
+                    // Message for regular users
+                    showError(`Could not connect to the database. Please try again later.`);
+                }
+                
+                // Do NOT use demo tours
+                activeTours = [];
+                displayTours([]);
+            } finally {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('toursList').classList.remove('hidden');
+                checkAdminStatus(); // Check admin status after loading tours
+            }
+        }
+
+        function showError(message) {
+            const errorContainer = document.getElementById('errorContainer');
+            errorContainer.innerHTML = `<div class="error-message">${message}</div>`;
+            errorContainer.classList.remove('hidden');
+        }
+        
+        function showWarning(message) {
+            const errorContainer = document.getElementById('errorContainer');
+            errorContainer.innerHTML = `<div class="bg-yellow-800 bg-opacity-20 border border-yellow-600 p-4 rounded-lg mb-4">${message}</div>`;
+            errorContainer.classList.remove('hidden');
+        }
+
+        function displayTours(tours) {
+            const toursListElement = document.getElementById('toursList');
+            
+            if (!tours || tours.length === 0) {
+                toursListElement.innerHTML = '<div class="col-span-full text-center py-8 bg-gray-800 bg-opacity-50 rounded-lg">' +
+                                              '<p class="text-xl text-gray-300">No college tours available.</p>' + 
+                                              '<p class="text-gray-400 mt-2">Colleges will appear when admins add their institutions.</p>' +
+                                              '</div>';
+                return;
+            }
+            
+            toursListElement.innerHTML = tours.map(tour => `
+                <div class="bg-gray-800 rounded-lg overflow-hidden tour-card cursor-pointer shadow-lg flex flex-col h-full" 
+                     onclick="showTourDetails('${tour._id || tour.id}')">
+                    <img src="${tour.image}" class="college-image" alt="${tour.name}">
+                    <div class="p-4 flex-grow flex flex-col">
+                        <h3 class="font-bold text-lg text-blue-400 mb-2">${tour.shortName || tour.name}</h3>
+                        <div class="flex flex-wrap mb-2">
+                            <span class="badge bg-blue-500 bg-opacity-20 text-blue-300 border border-blue-500">Est. ${tour.established}</span>
+                            <span class="badge bg-purple-500 bg-opacity-20 text-purple-300 border border-purple-500">${tour.type}</span>
+                        </div>
+                        <p class="text-gray-300 text-xs flex items-center mb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 inline-block mr-1 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span class="truncate">${tour.address || 'Location unavailable'}</span>
+                        </p>
+                        <p class="text-gray-400 text-sm mt-auto line-clamp-2">${tour.description.substring(0, 100)}...</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Enhanced modal functionality
+        function showTourDetails(tourId) {
+            // Find the tour using either MongoDB _id or regular id
+            const tour = activeTours.find(t => (t._id === tourId || t.id === tourId));
+            if (!tour) return;
+
+            // Populate modal with tour info
+            document.getElementById('modalTitle').textContent = tour.name;
+            document.getElementById('modalDescription').textContent = tour.description;
+            document.getElementById('modalImage').src = tour.image;
+            document.getElementById('modalImage').alt = tour.name;
+            
+            // Populate facts
+            document.getElementById('modalFacts').innerHTML = `
+                <div><span class="text-gray-400">Established:</span> ${tour.established}</div>
+                <div><span class="text-gray-400">Type:</span> ${tour.type}</div>
+                <div><span class="text-gray-400">Students:</span> ${tour.students}</div>
+                <div><span class="text-gray-400">Address:</span> ${tour.address}</div>
+            `;
+            
+            // Populate tour info
+            document.getElementById('modalTourInfo').innerHTML = `
+                <p class="text-gray-300">${tour.tourInfo}</p>
+            `;
+            
+            document.getElementById('tourModal').classList.remove('hidden');
+        }
+
+        document.getElementById('closeModal').addEventListener('click', () => {
+            document.getElementById('tourModal').classList.add('hidden');
+        });
+        
+        // Replace the existing bookTourBtn click handler with this one
+        document.getElementById('bookTourBtn').addEventListener('click', () => {
+            // Get the current college data from the modal
+            const collegeName = document.getElementById('modalTitle').textContent;
+            const college = activeTours.find(tour => tour.name === collegeName);
+            
+            if (!college) {
+                alert('Error: College information not found.');
+                return;
+            }
+            
+            // Store the selected college in localStorage for the dashboard to use
+            localStorage.setItem('selectedCollege', JSON.stringify(college));
+            
+            // Navigate to the dashboard page
+            window.location.href = 'dashboard.html?id=' + (college._id || college.id);
+        });
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            
+            if (!activeTours || activeTours.length === 0) return;
+            
+            if (!searchTerm) {
+                displayTours(activeTours);
+                document.getElementById('noResults').classList.add('hidden');
+                return;
+            }
+            
+            const filteredTours = activeTours.filter(tour => {
+                return (
+                    tour.name.toLowerCase().includes(searchTerm) ||
+                    (tour.shortName && tour.shortName.toLowerCase().includes(searchTerm)) ||
+                    (tour.address && tour.address.toLowerCase().includes(searchTerm)) ||
+                    (tour.type && tour.type.toLowerCase().includes(searchTerm)) ||
+                    tour.description.toLowerCase().includes(searchTerm)
+                );
+            });
+            
+            if (filteredTours.length === 0) {
+                document.getElementById('toursList').classList.add('hidden');
+                document.getElementById('noResults').classList.remove('hidden');
+            } else {
+                document.getElementById('toursList').classList.remove('hidden');
+                document.getElementById('noResults').classList.add('hidden');
+                displayTours(filteredTours);
+            }
+        });
+
+        // Logout functionality
+        document.getElementById('logout').addEventListener('click', () => {
+            localStorage.removeItem('token');
+            window.location.href = 'login.html';
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', initializeApp);
+
+        let isAdmin = false;
+        // Replace the single admin email with an array of admin emails
+        let adminEmails = ['kesav@admin.com', 'admin@example.com', 'college@admin.edu']; // Array of admin emails
+        let currentUser = null;
+        let adminCollege = null;
+
+        // Check if user is admin
+        function checkAdminStatus() {
+            // Get user email from localStorage
+            currentUser = localStorage.getItem('userEmail');
+            
+            console.group('✅ Admin Status Check');
+            console.log('Current user email:', currentUser || 'Not set');
+            console.log('Admin emails list:', adminEmails);
+            
+            if (!currentUser) {
+                console.log('❌ STATUS: No email found in localStorage');
+                console.warn('To enable admin features, set the userEmail in localStorage');
+                console.groupEnd();
+                
+                showWarning("Admin features require email identification. Please login first.");
+                return;
+            }
+            
+            // Check if current user's email is in the adminEmails array
+            if (adminEmails.includes(currentUser)) {
+                console.log('✅ STATUS: User IS an admin');
+                console.log('Admin email match found:', currentUser);
+                isAdmin = true;
+                
+                // Create admin button if it doesn't exist yet
+                if (!document.getElementById('adminLink')) {
+                    console.log('Creating admin panel button...');
+                    
+                    // Get the navigation div that contains buttons
+                    const navContainer = document.querySelector('nav .flex.items-center');
+                    if (!navContainer) {
+                        console.error('Navigation container not found');
+                        console.groupEnd();
+                        return;
+                    }
+                    
+                    // Create the admin button
+                    const adminLink = document.createElement('button');
+                    adminLink.id = 'adminLink';
+                    adminLink.className = 'text-gray-150 hover:text-green-400 mr-4';
+                    adminLink.textContent = 'Admin Panel';
+                    adminLink.onclick = openAdminPanel; // Use onclick instead of addEventListener
+                    
+                    // Safely insert the button with proper error checking
+                    const logoutBtn = document.getElementById('logout');
+                    
+                    try {
+                        // Check if logout button exists and is a child of navContainer
+                        if (logoutBtn && logoutBtn.parentNode === navContainer) {
+                            navContainer.insertBefore(adminLink, logoutBtn);
+                        } else {
+                            // If logout button doesn't exist or isn't a child of navContainer
+                            // Just insert at the beginning of the navigation container
+                            if (navContainer.firstChild) {
+                                navContainer.insertBefore(adminLink, navContainer.firstChild);
+                            } else {
+                                navContainer.appendChild(adminLink);
+                            }
+                        }
+                        console.log('Admin button added successfully');
+z                    } catch (err) {
+                        console.error('Error adding admin button:', err);
+                        // Fallback - just append to the container
+                        try {
+                            navContainer.appendChild(adminLink);
+                            console.log('Admin button added using fallback method');
+                        } catch (fallbackErr) {
+                            console.error('Could not add admin button even with fallback:', fallbackErr);
+                        }
+                    }
+                }
+                
+                // Find if admin already has a college
+                findAdminCollege();
+                console.log('Admin college found:', adminCollege ? adminCollege.name : 'None');
+            } else {
+                console.log('❌ STATUS: User is NOT an admin');
+                console.log(`Email "${currentUser}" is not in the admin list`);
+                isAdmin = false;
+            }
+            
+            console.groupEnd();
+        }
+
+        // Call it manually
+        
+        // Find college belonging to admin
+        function findAdminCollege() {
+            // Find a college with the current user's email
+            adminCollege = activeTours.find(tour => tour.adminEmail === currentUser);
+        }
+        
+        // Open admin panel
+        function openAdminPanel() {
+            if (!isAdmin) return;
+            
+            findAdminCollege();
+            
+            if (adminCollege) {
+                // Admin already has a college
+                document.getElementById('adminNoCollege').classList.add('hidden');
+                document.getElementById('adminHasCollege').classList.remove('hidden');
+                
+                // Display only the admin's own college
+                const collegeCard = document.getElementById('adminCollegeCard');
+                collegeCard.innerHTML = `
+                    <div class="flex items-start">
+                        <img src="${adminCollege.image}" class="w-24 h-24 object-cover rounded mr-4" alt="${adminCollege.name}">
+                        <div>
+                            <h5 class="text-lg font-bold">${adminCollege.name}</h5>
+                            <p class="text-sm text-gray-400">${adminCollege.type} • Est. ${adminCollege.established}</p>
+                            <p class="text-xs text-gray-300 mt-1">${adminCollege.description.substring(0, 100)}...</p>
+                        </div>
+                    </div>
+                `;
+                
+                // Populate edit form with current values
+                document.getElementById('editCollegeName').value = adminCollege.name;
+                document.getElementById('editCollegeShortName').value = adminCollege.shortName || '';
+                document.getElementById('editCollegeEstablished').value = adminCollege.established;
+                document.getElementById('editCollegeType').value = adminCollege.type;
+                document.getElementById('editCollegeStudents').value = adminCollege.students;
+                document.getElementById('editCollegeAddress').value = adminCollege.address;
+                document.getElementById('editCollegeDescription').value = adminCollege.description;
+                document.getElementById('editCollegeTourInfo').value = adminCollege.tourInfo;
+                document.getElementById('editCollegeImage').value = adminCollege.image;
+            } else {
+                // Admin does not have a college yet
+                document.getElementById('adminNoCollege').classList.remove('hidden');
+                document.getElementById('adminHasCollege').classList.add('hidden');
+            }
+            
+            document.getElementById('adminControlsModal').classList.remove('hidden');
+        }
+        
+        // Close admin panel
+        document.getElementById('closeAdminModal').addEventListener('click', () => {
+            document.getElementById('adminControlsModal').classList.add('hidden');
+            document.getElementById('editCollegeForm').classList.add('hidden');
+        });
+        
+        // Handle adding a new college
+        document.getElementById('addCollegeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            submitButton.textContent = 'Adding...';
+            submitButton.disabled = true;
+            
+            const newCollege = {
+                name: document.getElementById('collegeName').value,
+                shortName: document.getElementById('collegeShortName').value,
+                description: document.getElementById('collegeDescription').value,
+                location: [0, 0], // Default location
+                address: document.getElementById('collegeAddress').value,
+                established: document.getElementById('collegeEstablished').value,
+                type: document.getElementById('collegeType').value,
+                students: document.getElementById('collegeStudents').value,
+                tourInfo: document.getElementById('collegeTourInfo').value,
+                image: document.getElementById('collegeImage').value,
+                adminEmail: currentUser
+            };
+
+            // In the tours.html form submission handler - add to the college/tour object:
+
+            // Get form values
+            const name = document.getElementById('collegeName').value;
+            const description = document.getElementById('collegeDescription').value;
+            const established = document.getElementById('collegeEstablished').value;
+            const students = document.getElementById('collegeStudents').value;
+            const type = document.getElementById('collegeType').value;
+            const image = document.getElementById('collegeImage').value;
+
+            // Get coordinates from form fields
+            const longitude = parseFloat(document.getElementById('collegeLongitude').value);
+            const latitude = parseFloat(document.getElementById('collegeLatitude').value);
+
+            // Create the college/tour object
+            const collegeData = {
+                name,
+                description,
+                established,
+                students,
+                type,
+                image,
+                // Store coordinates in two formats for compatibility
+                longitude: !isNaN(longitude) ? longitude : null,
+                latitude: !isNaN(latitude) ? latitude : null,
+                location: (!isNaN(longitude) && !isNaN(latitude)) ? [longitude, latitude] : null
+            };
+
+            try {
+                console.log('Sending college data to server:', newCollege);
+                
+                // Send to MongoDB via API - Use absolute URL
+                const response = await fetch('http://localhost:3000/api/tours', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify(newCollege)
+                });
+                
+                console.log('Server response status:', response.status);
+                
+                // Safely handle the response
+                let responseData;
+                const responseText = await response.text();
+                console.log('Raw response from server:', responseText);
+                
+                try {
+                    // Only try to parse as JSON if there's actual content
+                    if (responseText) {
+                        responseData = JSON.parse(responseText);
+                    }
+                } catch (parseError) {
+                    console.error('Error parsing JSON response:', parseError);
+                    // Continue with empty responseData
+                }
+                
+                if (!response.ok) {
+                    const errorMessage = responseData?.message || `Server returned ${response.status}: ${response.statusText}`;
+                    throw new Error(errorMessage);
+                }
+                
+                // If the server response doesn't contain college data, use the data we sent
+                const savedCollege = responseData || {
+                    ...newCollege,
+                    id: Date.now() // Generate a temporary ID
+                };
+                
+                console.log('College saved successfully:', savedCollege);
+                
+                // Add the new college to active tours
+                activeTours.push(savedCollege);
+                adminCollege = savedCollege;
+                
+                // Also save to localStorage as backup
+                localStorage.setItem('tourData', JSON.stringify(activeTours));
+                
+                // Refresh display
+                displayTours(activeTours);
+                
+                // Close modal and show success message
+                document.getElementById('adminControlsModal').classList.add('hidden');
+                showWarning("Your college has been added successfully!");
+            } catch (error) {
+                console.error('Error adding college:', error);
+                showError(`Failed to add college: ${error.message}`);
+            } finally {
+                submitButton.textContent = 'Add College';
+                submitButton.disabled = false;
+            }
+        });
+        
+        // Handle editing college
+        document.getElementById('editCollegeBtn').addEventListener('click', () => {
+            document.getElementById('editCollegeForm').classList.remove('hidden');
+        });
+        
+        document.getElementById('cancelEditBtn').addEventListener('click', () => {
+            document.getElementById('editCollegeForm').classList.add('hidden');
+        });
+        
+        document.getElementById('editCollegeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            submitButton.textContent = 'Saving...';
+            submitButton.disabled = true;
+            
+            try {
+                // Get college ID and prepare updated data
+                const collegeId = adminCollege?._id || adminCollege?.id;
+                if (!collegeId) throw new Error('College ID not found');
+                
+                // Verify ownership before updating
+                if (adminCollege.adminEmail !== currentUser) {
+                    throw new Error('You can only edit your own college');
+                }
+                
+                // Create updated college object with form data
+                const updatedCollege = {
+                    name: document.getElementById('editCollegeName').value,
+                    shortName: document.getElementById('editCollegeShortName').value,
+                    description: document.getElementById('editCollegeDescription').value,
+                    address: document.getElementById('editCollegeAddress').value,
+                    established: document.getElementById('editCollegeEstablished').value,
+                    type: document.getElementById('editCollegeType').value,
+                    students: document.getElementById('editCollegeStudents').value,
+                    tourInfo: document.getElementById('editCollegeTourInfo').value,
+                    image: document.getElementById('editCollegeImage').value,
+                    adminEmail: currentUser // Preserve ownership
+                };
+                
+                // Update in database
+                const response = await fetch(`http://localhost:3000/api/tours/${collegeId}`, {
+                    method: 'PUT', 
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify(updatedCollege)
+                });
+                
+                // Process response
+                let savedCollege;
+                try {
+                    const text = await response.text();
+                    savedCollege = text ? JSON.parse(text) : null;
+                } catch (e) {
+                    console.error('Error parsing response:', e);
+                }
+                
+                if (!response.ok) throw new Error(savedCollege?.message || 'Update failed');
+                
+                // Update local data - only update the college belonging to this admin
+                const index = activeTours.findIndex(t => 
+                    (t._id === collegeId || t.id === collegeId) && t.adminEmail === currentUser
+                );
+                
+                if (index !== -1) activeTours[index] = savedCollege || {...updatedCollege, id: collegeId};
+                adminCollege = savedCollege || {...updatedCollege, id: collegeId};
+                
+                // UI updates
+                displayTours(activeTours);
+                document.getElementById('editCollegeForm').classList.add('hidden');
+                showWarning("College details updated successfully!");
+                
+            } catch (error) {
+                console.error('Error updating college:', error);
+                showError(`Failed to update college: ${error.message}`);
+            } finally {
+                submitButton.textContent = 'Save Changes';
+                submitButton.disabled = false;
+            }
+        });
+
+        // Replace the deleteCollegeBtn click handler:
+
+        document.getElementById('deleteCollegeBtn').addEventListener('click', async () => {
+            if (confirm('Are you sure you want to delete your college? This action cannot be undone.')) {
+                const deleteBtn = document.getElementById('deleteCollegeBtn');
+                deleteBtn.textContent = 'Deleting...';
+                deleteBtn.disabled = true;
+                
+                try {
+                    if (!adminCollege) {
+                        throw new Error('No college found to delete');
+                    }
+                    
+                    // Verify ownership before deleting
+                    if (adminCollege.adminEmail !== currentUser) {
+                        throw new Error('You can only delete your own college');
+                    }
+                    
+                    // Use either _id or id, whichever exists
+                    const collegeId = adminCollege._id || adminCollege.id;
+                    
+                    if (!collegeId) {
+                        throw new Error('College ID not found');
+                    }
+                    
+                    console.log('Attempting to delete college with ID:', collegeId);
+                    
+                    // Delete via API
+                    const response = await fetch(`http://localhost:3000/api/tours/${collegeId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        let errorMessage = 'Failed to delete college';
+                        try {
+                            const errorData = await response.json();
+                            errorMessage = errorData.message || errorMessage;
+                        } catch (parseError) {
+                            console.error('Could not parse error response:', parseError);
+                        }
+                        throw new Error(errorMessage);
+                    }
+                    
+                    // Remove from active tours by either id type and ensure it's the admin's college
+                    activeTours = activeTours.filter(tour => 
+                        (tour._id !== collegeId && tour.id !== collegeId) || tour.adminEmail !== currentUser
+                    );
+                    adminCollege = null;
+                    
+                    // Refresh display
+                    displayTours(activeTours);
+                    
+                    // Close modal and show success message
+                    document.getElementById('adminControlsModal').classList.add('hidden');
+                    showWarning("Your college has been removed from the database.");
+                    
+                } catch (error) {
+                    console.error('Error deleting college:', error);
+                    showError(`Failed to delete college: ${error.message}`);
+                } finally {
+                    deleteBtn.textContent = 'Delete College';
+                    deleteBtn.disabled = false;
+                }
+            }
+        });
+        
+        // Add this debug function to help troubleshoot admin login issues
+        function debugAdminStatus() {
+            console.group('🔍 Admin Status Debug Info');
+            console.log('Current user:', localStorage.getItem('userEmail'));
+            console.log('Admin emails:', adminEmails);
+            console.log('Is admin:', adminEmails.includes(localStorage.getItem('userEmail')));
+            console.log('Admin college:', adminCollege ? adminCollege.name : 'None');
+            console.log('Active tours count:', activeTours.length);
+            console.groupEnd();
+            
+            // Add this to help users set their email for testing
+            if (!localStorage.getItem('userEmail')) {
+                console.log('\n%cTIP: To set your email for testing, run this command:', 'color: #4ade80; font-weight: bold');
+                console.log(`localStorage.setItem('userEmail', 'kesav@admin.com')`);
+                console.log('%cThen refresh the page', 'color: #4ade80');
+            }
+        }
+
+        // Fix admin panel access issues
+        function fixAdminPanel() {
+            console.log("Running admin panel fix...");
+            
+            // Make sure admin panel is registered as an admin
+            if (!isAdmin && adminEmails.includes(localStorage.getItem('userEmail'))) {
+                console.log("Fixing admin status...");
+                isAdmin = true;
+            }
+            
+            // Fix admin button if missing
+            if (isAdmin && !document.getElementById('adminLink')) {
+                console.log("Creating missing admin button...");
+                
+                // Create button
+                const adminLink = document.createElement('button');
+                adminLink.id = 'adminLink';
+                adminLink.className = 'text-gray-150 hover:text-green-400 mr-4';
+                adminLink.textContent = 'Admin Panel';
+                
+                // Important: Use a direct function call instead of a reference to ensure proper scope
+                adminLink.addEventListener('click', function() {
+                    console.log("Admin button clicked!");
+                    document.getElementById('adminControlsModal').classList.remove('hidden');
+                    
+                    // Handle college display
+                    findAdminCollege();
+                    if (adminCollege) {
+                        document.getElementById('adminNoCollege').classList.add('hidden');
+                        document.getElementById('adminHasCollege').classList.remove('hidden');
+                        
+                        // Populate edit form with current values
+                        document.getElementById('editCollegeName').value = adminCollege.name || '';
+                        document.getElementById('editCollegeShortName').value = adminCollege.shortName || '';
+                        // ... other fields ...
+                    } else {
+                        document.getElementById('adminNoCollege').classList.remove('hidden');
+                        document.getElementById('adminHasCollege').classList.add('hidden');
+                    }
+                });
+                
+                // Insert button in proper place
+                const navBtns = document.querySelector('nav .flex.items-center');
+                if (navBtns) {
+                    if (document.getElementById('logout')) {
+                        navBtns.insertBefore(adminLink, document.getElementById('logout'));
+                    } else {
+                        navBtns.appendChild(adminLink);
+                    }
+                    console.log("Admin button added successfully");
+                }
+            }
+            
+            // Add quick access method
+            window.openAdmin = function() {
+                console.log("Opening admin panel via direct method");
+                document.getElementById('adminControlsModal').classList.remove('hidden');
+                
+                findAdminCollege();
+                if (adminCollege) {
+                    document.getElementById('adminNoCollege').classList.add('hidden');
+                    document.getElementById('adminHasCollege').classList.remove('hidden');
+                } else {
+                    document.getElementById('adminNoCollege').classList.remove('hidden');
+                    document.getElementById('adminHasCollege').classList.add('hidden');
+                }
+            };
+            
+            console.log("Admin panel fix completed. If button still doesn't appear, run 'openAdmin()' in console.");
+        }
+
+        // Run fix after a short delay to ensure DOM is fully loaded
+        setTimeout(fixAdminPanel, 2000);
+
+        // For immediate testing via console
+        window.testAdmin = function() {
+            console.clear();
+            console.log("Testing admin functionality...");
+            console.log("isAdmin:", isAdmin);
+            console.log("Current email:", localStorage.getItem('userEmail'));
+            console.log("Admin check:", adminEmails.includes(localStorage.getItem('userEmail')));
+            fixAdminPanel();
+        };
+        
+        function initializeApp() {
+            console.log('Initializing app...');
+            fetchTours();  // This will also call checkAdminStatus
+        }
+
+        // Helper function to debug MongoDB operations
+        window.debugMongoDB = function() {
+            console.group("MongoDB Debug Info");
+            console.log("Current tour count in memory:", activeTours.length);
+            
+            // Check for MongoDB IDs
+            const hasMongoIds = activeTours.some(tour => tour._id);
+            console.log("Tours have MongoDB IDs:", hasMongoIds);
+            
+            // Show first tour details
+            if (activeTours.length > 0) {
+                console.log("First tour sample:", {
+                    name: activeTours[0].name,
+                    id: activeTours[0].id,
+                    _id: activeTours[0]._id,
+                    adminEmail: activeTours[0].adminEmail
+                });
+            }
+            
+            // Test MongoDB connection
+            fetch('/api/tours')
+                .then(res => {
+                    console.log("API connection status:", res.status);
+                    return res.text();
+                })
+                .then(data => {
+                    console.log("API raw response:", data.substring(0, 100) + "...");
+                    try {
+                        const parsed = JSON.parse(data);
+                        console.log("Parsed tour count from API:", parsed.length);
+                    } catch(e) {
+                        console.error("Failed to parse API response");
+                    }
+                })
+                .catch(err => console.error("API fetch error:", err));
+            
+            console.groupEnd();
+        };
+
+        // In tours.html form validation before submission
+
+        // Form validation
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Required fields validation
+            const name = document.getElementById('collegeName').value.trim();
+            if (!name) {
+                showError('College name is required');
+                return;
+            }
+            
+            // Get coordinates
+            const longitude = parseFloat(document.getElementById('collegeLongitude').value);
+            const latitude = parseFloat(document.getElementById('collegeLatitude').value);
+            
+            // Warn if coordinates are missing
+            if (isNaN(longitude) || isNaN(latitude)) {
+                if (!confirm('No coordinates provided for this college. The map may not display correctly. Continue anyway?')) {
+                    return;
+                }
+            }
+            
+            // Continue with form submission...
+        });
+    </script>
+</body>
+</html>

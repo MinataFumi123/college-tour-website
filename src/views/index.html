@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>College Tour Website</title>
+    <!-- Add JetBrains Mono font -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="/custom.css" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'JetBrains Mono', monospace;
+        }
+    </style>
+</head>
+<body class="bg-black text-white">
+    <nav class="bg-gray-800 p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold"><a href="index.html">College Tours</a></h1>
+            <div class="flex items-center">
+                <a href="login.html" class="ml-4 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 flex items-center space-x-2 text-lg font-medium transition-all duration-300 text-white hover:text-blue-400">
+                    Login
+                </a>
+                <a href="register.html" class="ml-4 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 flex items-center space-x-2 text-lg font-medium transition-all duration-300 text-white hover:text-blue-400">
+                    Register
+                </a>
+                <button id="theme-toggle" class="ml-6 px-6 py-2 rounded-lg bg-yellow-500 text-white hover:bg-opacity-90 flex items-center space-x-2 text-lg font-medium transition-all duration-300">
+                    <span id="theme-icon"></span>
+                    <span id="theme-text">Light Theme</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+    <hr></hr>
+
+    <main class="container mx-auto px-4 py-12">
+        <section class="mb-12">
+            <h2 class="text-4xl font-bold mb-4 will-type will-type">Welcome to College Tours,</h2>
+            <p class="text-xl mb-8 will-type">Explore our interactive campus tours and plan your visit.</p>
+        </section>
+
+        <!-- Replace map with features grid -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+            <div class="bg-gray-800 p-6 rounded-lg transform hover:scale-105 transition-transform duration-300">
+                <h3 class="text-2xl font-bold mb-4 text-blue-400 will-type">Virtual Tours</h3>
+                <p class="text-gray-300 will-type">Experience our campus from anywhere in the world with our immersive virtual tours.</p>
+            </div>
+
+            <div class="bg-gray-800 p-6 rounded-lg transform hover:scale-105 transition-transform duration-300">
+                <h3 class="text-2xl font-bold mb-4 text-blue-400 will-type">Live Guides</h3>
+                <p class="text-gray-300 will-type">Connect with student ambassadors who provide real-time campus insights.</p>
+            </div>
+
+            <div class="bg-gray-800 p-6 rounded-lg transform hover:scale-105 transition-transform duration-300">
+                <h3 class="text-2xl font-bold mb-4 text-blue-400 will-type">Custom Schedule</h3>
+                <p class="text-gray-300 will-type">Create personalized tour itineraries based on your interests and time.</p>
+            </div>
+        </section>
+
+        <!-- Add testimonials section -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold mb-8 text-center">Why Choose Our Tours?</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-gray-800 p-6 rounded-lg">
+                    <p class="text-gray-300 mb-4 ">"The virtual tour experience was incredibly detailed and helped me make my college decision without leaving home!"</p>
+                    <p class="text-blue-400 font-bold">- Sarah Johnson, Prospective Student</p>
+                </div>
+                <div class="bg-gray-800 p-6 rounded-lg">
+                    <p class="text-gray-300 mb-4 will-type2">"The student guides were knowledgeable and showed us aspects of campus life we wouldn't have discovered on our own."</p>
+                    <p class="text-blue-400 font-bold">- Michael Chen, Parent</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Add CTA section -->
+        <section class="text-center">
+            <h2 class="text-3xl font-bold mb-6">Ready to Explore?</h2>
+            <button class="bg-blue-600 hover:bg-blue-500 px-8 py-3 rounded-lg text-lg font-medium transition-all duration-300 transform hover:scale-105">
+                <a href="login.html" class="text-white">Start Your Tour</a>
+            </button>
+        </section>
+    </main>
+
+    <!-- Keep your scripts -->
+    <script src="../assets/scripts/theme.js"></script>
+    <script src="../assets/scripts/typing.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Find all elements with the will-type class
+            const elements = document.querySelectorAll('.will-type');
+            const elements2 = document.querySelectorAll('.will-type2');
+            
+            // Apply ultra-fast typing effect to all elements
+            elements.forEach(element => {
+                createTypingEffect(element, {
+                    speed: 5, // Super fast typing (5ms per character)
+                    removeCursorAfterTyping: true
+                });
+            });
+            elements2.forEach(element => {
+                createTypingEffect(element, {
+                    speed: 5, // Super fast typing (5ms per character)
+                    removeCursorAfterTyping: true
+                });
+            });
+        });
+    </script>
+</body>
+</html>

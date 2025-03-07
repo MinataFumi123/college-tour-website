@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - College Tours</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="/custom.css" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        /* Form field styling for better visibility */
+        input {
+            background-color: rgba(55, 65, 81, 0.8) !important;
+            border: 1px solid rgba(107, 114, 128, 0.5) !important;
+        }
+        
+        .light-mode input {
+            background-color: rgba(243, 244, 246, 0.8) !important;
+            border: 1px solid rgba(209, 213, 219, 0.5) !important;
+            color: #111827 !important;
+        }
+    </style>
+</head>
+<body class="bg-black text-white">
+    <!-- Navigation -->
+    <nav class="bg-gray-800 p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold">College Tours</h1>
+            <div class="flex items-center">
+                <a href="index.html" class="text-gray-150 hover:text-blue-400 mr-4">Home</a>
+                <button id="theme-toggle" class="ml-6 px-6 py-2 rounded-lg bg-yellow-500 text-white hover:bg-opacity-90 flex items-center space-x-2 text-lg font-medium transition-all duration-300">
+                    <span id="theme-icon"></span>
+                    <span id="theme-text">Light Theme</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="min-h-screen flex items-center justify-center">
+        <div class="bg-gray-800 p-8 rounded-lg shadow-lg w-96">
+            <h2 class="text-2xl font-bold mb-6">Register</h2>
+            <form id="registerForm">
+                <div class="mb-4">
+                    <label class="block mb-2">Username</label>
+                    <input type="text" id="username" class="w-full p-2 rounded bg-gray-600 text-white border border-gray-500 focus:border-blue-400 focus:outline-none" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block mb-2">Email</label>
+                    <input type="email" id="email" class="w-full p-2 rounded bg-gray-600 text-white border border-gray-500 focus:border-blue-400 focus:outline-none" required>
+                </div>
+                <div class="mb-6">
+                    <label class="block mb-2">Password</label>
+                    <input type="password" id="password" class="w-full p-2 rounded bg-gray-600 text-white border border-gray-500 focus:border-blue-400 focus:outline-none" required>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 p-2 rounded text-white transition duration-300">
+                    Register
+                </button>
+                <p class="mt-4 text-center">
+                    Already have an account? 
+                    <a href="login.html" class="text-blue-400 hover:text-blue-300">Login</a>
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <script src="../assets/scripts/theme.js"></script>
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Show loading state
+            const submitButton = document.querySelector('button[type="submit"]');
+            const originalText = submitButton.innerHTML;
+            submitButton.innerHTML = 'Registering...';
+            submitButton.disabled = true;
+            
+            // Clear any previous error messages
+            const existingErrors = document.querySelectorAll('.error-message');
+            existingErrors.forEach(el => el.remove());
+            
+            // Get form values
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            // Basic validation
+            if (!username || !email || !password) {
+                const errorElement = document.createElement('div');
+                errorElement.className = 'error-message mt-4 p-2 bg-red-500 text-white rounded';
+                errorElement.textContent = 'All fields are required';
+                document.getElementById('registerForm').appendChild(errorElement);
+                
+                submitButton.innerHTML = originalText;
+                submitButton.disabled = false;
+                return;
+            }
+            
+            const userData = { username, email, password };
+            console.log('Sending registration data:', userData);
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(userData)
+                });
+                
+                console.log('Response status:', response.status);
+                
+                let data;
+                try {
+                    const responseText = await response.text();
+                    console.log('Raw response:', responseText);
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('Failed to parse response:', parseError);
+                    throw new Error('Server returned invalid JSON');
+                }
+                
+                if (response.ok) {
+                    console.log('Registration successful');
+                    
+                    // Store token and redirect
+                    if (data && data.token) {
+                        localStorage.setItem('token', data.token);
+                    }
+                    
+                    // Show success message
+                    const successElement = document.createElement('div');
+                    successElement.className = 'mt-4 p-2 bg-green-500 text-white rounded';
+                    successElement.textContent = 'Registration successful! Redirecting to login...';
+                    document.getElementById('registerForm').appendChild(successElement);
+                    
+                    // Redirect after delay
+                    setTimeout(() => {
+                        window.location.href = 'login.html';
+                    }, 1500);
+                } else {
+                    // Show error from server
+                    const errorMessage = data?.message || 'Registration failed';
+                    const errorElement = document.createElement('div');
+                    errorElement.className = 'error-message mt-4 p-2 bg-red-500 text-white rounded';
+                    errorElement.textContent = errorMessage;
+                    document.getElementById('registerForm').appendChild(errorElement);
+                    
+                    submitButton.innerHTML = originalText;
+                    submitButton.disabled = false;
+                }
+            } catch (err) {
+                console.error('Error during registration:', err);
+                
+                const errorElement = document.createElement('div');
+                errorElement.className = 'error-message mt-4 p-2 bg-red-500 text-white rounded';
+                errorElement.textContent = `Registration error: ${err.message}`;
+                document.getElementById('registerForm').appendChild(errorElement);
+                
+                submitButton.innerHTML = originalText;
+                submitButton.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

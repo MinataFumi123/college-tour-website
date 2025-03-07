@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - College Tours</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="/custom.css" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        /* Form field styling for better visibility */
+        input {
+            background-color: rgba(55, 65, 81, 0.8) !important;
+            border: 1px solid rgba(107, 114, 128, 0.5) !important;
+        }
+        
+        .light-mode input {
+            background-color: rgba(243, 244, 246, 0.8) !important;
+            border: 1px solid rgba(209, 213, 219, 0.5) !important;
+            color: #111827 !important;
+        }
+    </style>
+</head>
+<body class="bg-black text-white">
+    <!-- Navigation -->
+    <nav class="bg-gray-800 p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold">College Tours</h1>
+            <div class="flex items-center">
+                <a href="index.html" class="text-gray-150 hover:text-blue-400 mr-4">Home</a>
+                <button id="theme-toggle" class="ml-6 px-6 py-2 rounded-lg bg-yellow-500 text-white hover:bg-opacity-90 flex items-center space-x-2 text-lg font-medium transition-all duration-300">
+                    <span id="theme-icon"></span>
+                    <span id="theme-text">Light Theme</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="min-h-screen flex items-center justify-center">
+        <div class="bg-gray-800 p-8 rounded-lg shadow-lg w-96">
+            <h2 class="text-2xl font-bold mb-6">Login</h2>
+            <form id="loginForm">
+                <div class="mb-4">
+                    <label class="block mb-2">Email</label>
+                    <input type="email" id="email" class="w-full p-2 rounded bg-gray-600 text-white border border-gray-500 focus:border-blue-400 focus:outline-none" required>
+                </div>
+                <div class="mb-6">
+                    <label class="block mb-2">Password</label>
+                    <input type="password" id="password" class="w-full p-2 rounded bg-gray-600 text-white border border-gray-500 focus:border-blue-400 focus:outline-none" required>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 p-2 rounded text-white transition duration-300">
+                    Login
+                </button>
+                <p class="mt-4 text-center">
+                    Don't have an account? 
+                    <a href="register.html" class="text-blue-400 hover:text-blue-300">Register</a>
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <script src="../assets/scripts/theme.js"></script>
+    <script>
+        // Update the login form submission handler
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Show loading state
+            const submitButton = document.querySelector('button[type="submit"]');
+            const originalText = submitButton.innerHTML;
+            submitButton.innerHTML = 'Logging in...';
+            submitButton.disabled = true;
+            
+            // Clear any previous error messages
+            const existingErrors = document.querySelectorAll('.error-message');
+            existingErrors.forEach(el => el.remove());
+            
+            // Get form values
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            // Basic validation
+            if (!email || !password) {
+                const errorElement = document.createElement('div');
+                errorElement.className = 'error-message mt-4 p-2 bg-red-500 text-white rounded';
+                errorElement.textContent = 'Email and password are required';
+                document.getElementById('loginForm').appendChild(errorElement);
+                
+                submitButton.innerHTML = originalText;
+                submitButton.disabled = false;
+                return;
+            }
+            
+            // Send both email and username (as email) for flexibility
+            const userData = { 
+                email, 
+                username: email, // Add username as fallback
+                password 
+            };
+            
+            console.log('Sending login data:', userData);
+            
+            try {
+                // Use absolute URL like in register.html
+                const response = await fetch('http://localhost:3000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(userData)
+                });
+                
+                console.log('Response status:', response.status);
+                
+                let data;
+                try {
+                    const responseText = await response.text();
+                    console.log('Raw response:', responseText);
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('Failed to parse response:', parseError);
+                    throw new Error('Server returned invalid JSON');
+                }
+                
+                if (response.ok) {
+                    console.log('Login successful');
+                    
+                    // Store token and email
+                    if (data && data.token) {
+                        localStorage.setItem('token', data.token);
+                        localStorage.setItem('userEmail', email); // Store the actual email address
+                        
+                        // Also store user information if available
+                        if (data.user) {
+                            localStorage.setItem('userId', data.user._id || data.user.id);
+                            localStorage.setItem('username', data.user.username || '');
+                        }
+                    }
+                    
+                    // Show success message
+                    const successElement = document.createElement('div');
+                    successElement.className = 'mt-4 p-2 bg-green-500 text-white rounded';
+                    successElement.textContent = 'Login successful! Redirecting...';
+                    document.getElementById('loginForm').appendChild(successElement);
+                    
+                    // Redirect after delay
+                    setTimeout(() => {
+                        window.location.href = 'tours.html';
+                    }, 1000);
+                } else {
+                    // Show error from server
+                    const errorMessage = data?.message || 'Login failed';
+                    const errorElement = document.createElement('div');
+                    errorElement.className = 'error-message mt-4 p-2 bg-red-500 text-white rounded';
+                    errorElement.textContent = errorMessage;
+                    document.getElementById('loginForm').appendChild(errorElement);
+                    
+                    submitButton.innerHTML = originalText;
+                    submitButton.disabled = false;
+                }
+            } catch (err) {
+                console.error('Error during login:', err);
+                
+                const errorElement = document.createElement('div');
+                errorElement.className = 'error-message mt-4 p-2 bg-red-500 text-white rounded';
+                errorElement.textContent = `Login error: ${err.message}`;
+                document.getElementById('loginForm').appendChild(errorElement);
+                
+                submitButton.innerHTML = originalText;
+                submitButton.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

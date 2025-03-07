@@ -1,0 +1,52 @@
+# Node.js dependencies (keep these out of version control)
+node_modules/
+
+# Environment files – these contain sensitive data that shouldn't be in git
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log
+
+# Build artifacts (if any build process outputs to these folders)
+dist/
+build/
+out/
+
+# Cache or temporary files (OS-specific or tool-generated)
+.DS_Store
+Thumbs.db
+.cache/
+.temp/
+*.tmp
+*.bak
+
+# Optional: Ignore editor config files that you don't want to share
+*.sublime-project
+*.sublime-workspace
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project-specific files that shouldn't be committed
+# Add your sensitive files or local configuration files here
+
+# Instructions for GitHub Upload
+# 1. Create a GitHub repository at https://github.com/new
+# 2. Initialize git in your project folder with: git init
+# 3. Add all files to staging: git add .
+# 4. Commit your changes: git commit -m "Initial commit"
+# 5. Link to your GitHub repo: git remote add origin https://github.com/MinataFumi123/college-tour-website.git
+# 6. Push to GitHub: git push -u origin main
+# 7. Verify your files appear in the GitHub repository
+#
+# Note: If you encounter authentication issues, set up a personal access token
+# at https://github.com/settings/tokens and use that token as your password

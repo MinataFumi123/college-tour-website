@@ -1,0 +1,76 @@
+/* Theme Variables */
+:root {
+    --bg-primary: #111827;
+    --bg-secondary: #1f2937;
+    --text-primary: #ffffff;
+    --text-secondary: #e5e7eb;
+}
+
+/* Light Theme Variables */
+:root.light-mode {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f3f4f6;
+    --text-primary: #111827;
+    --text-secondary: #4b5563;
+}
+
+/* Base Styles */
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: all 0.3s ease;
+}
+
+/* Add smooth transitions */
+body, nav, div {
+    transition: all 0.3s ease;
+}
+
+.bg-gray-800 {
+    background-color: var(--bg-secondary);
+    transition: all 0.3s ease;
+}
+
+.text-gray-300 {
+    color: var(--text-secondary);
+    transition: all 0.3s ease;
+}
+
+/* Theme Toggle Button */
+#theme-toggle {
+    transform: scale(1);
+    transition: all 0.3s ease;
+}
+
+#theme-toggle:hover {
+    transform: scale(1.05);
+}
+
+#theme-toggle:active {
+    transform: scale(0.95);
+}
+
+/* Theme-specific colors */
+.light-mode .bg-gray-800 {
+    background-color: var(--bg-secondary);
+}
+
+.light-mode .text-gray-300 {
+    color: var(--text-secondary);
+}
+
+.bg-blue-600 {
+    background-color: #2563eb;
+}
+
+.bg-yellow-500 {
+    background-color: #f59e0b;
+}
+
+.hover\:bg-blue-500:hover {
+    background-color: #3b82f6;
+}
+
+.hover\:bg-yellow-400:hover {
+    background-color: #fbbf24;
+}

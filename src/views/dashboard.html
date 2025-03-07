@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>College Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="/custom.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css" rel="stylesheet">
+    <style>
+        * { font-family: 'JetBrains Mono', monospace; }
+        #map { 
+            height: 400px !important; 
+            width: 100%; 
+            min-height: 400px; 
+            border-radius: 0.5rem;
+            background-color: #2d3748; /* Matching gray-800 color */
+            position: relative;
+            overflow: hidden;
+            display: block; /* Add this to ensure proper display */
+        }
+        .course-card { transition: all 0.3s ease; }
+        .star-rating { color: #f59e0b; }
+        
+        /* Fix black cards */
+        .bg-gray-700 { 
+            background-color: #7c828c !important; 
+        }
+        
+        .bg-gray-800 {
+            background-color: #1f2937 !important;
+        }
+        
+        /* Light mode card styles */
+        body.light-mode .bg-gray-700 { 
+            background-color: #f3f4f6 !important; 
+        }
+        
+        body.light-mode .bg-gray-800 {
+            background-color: #ffffff !important;
+        }
+        
+        /* Ensure text is visible in light mode */
+        body.light-mode .text-gray-300 {
+            color: #4b5563 !important;
+        }
+        
+        body.light-mode .text-white {
+            color: #111827 !important;
+        }
+        
+        /* Make sure theme toggle works correctly */
+        body.light-mode #theme-toggle {
+            background-color: #374151;
+            color: white;
+        }
+        
+        /* Make sure Mapbox UI elements are visible */
+        .mapboxgl-ctrl-top-right {
+            z-index: 5;
+        }
+        
+        /* Map popup styling */
+        .mapboxgl-popup-content {
+            padding: 12px;
+            background-color: #2d3748;
+            color: white;
+            border-radius: 6px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        
+        body.light-mode .mapboxgl-popup-content {
+            background-color: #ffffff;
+            color: #111827;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+        }
+        
+        .mapboxgl-popup-close-button {
+            color: white;
+        }
+        
+        body.light-mode .mapboxgl-popup-close-button {
+            color: #111827;
+        }
+        
+        .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
+            border-top-color: #2d3748;
+        }
+        
+        body.light-mode .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
+            border-top-color: #ffffff;
+        }
+    </style>
+</head>
+<body class="bg-black text-white">
+    <nav class="bg-gray-800 p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold">College Dashboard</h1>
+            <div class="flex items-center">
+                <button id="adminPanelBtn" class="text-gray-150 hover:text-green-400 mr-4 hidden">Admin Panel</button>
+                <a href="tours.html" class="text-gray-150 hover:text-blue-400 mr-4">Back to Tours</a>
+                <button id="logout" class="text-gray-150 hover:text-red-400 mr-4">Logout</button>
+                <button id="theme-toggle" class="ml-6 px-6 py-2 rounded-lg bg-yellow-500 text-white hover:bg-opacity-90 flex items-center space-x-2 text-lg font-medium transition-all duration-300">
+                    <span id="theme-icon"></span>
+                    <span id="theme-text">Light Theme</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-4 py-8">
+        <!-- College Info Section -->
+        <section class="mb-8" id="collegeInfo">
+            <div class="bg-gray-800 p-6 rounded-lg">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <img id="collegeImage" class="rounded-lg w-full h-64 object-cover" alt="College Image">
+                    <div class="md:col-span-2">
+                        <h2 id="collegeName" class="text-3xl font-bold mb-4"></h2>
+                        <p id="collegeDescription" class="text-gray-300 mb-4"></p>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><span class="text-blue-400">Established:</span> <span id="collegeEstablished"></span></div>
+                            <div><span class="text-blue-400">Students:</span> <span id="collegeStudents"></span></div>
+                            <div><span class="text-blue-400">Type:</span> <span id="collegeType"></span></div>
+                            <div><span class="text-blue-400">Rating:</span> <span id="collegeRating" class="star-rating"></span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Map & Courses Section -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- Update your map container to include a loading indicator -->
+            <div class="bg-gray-800 p-6 rounded-lg">
+                <h3 class="text-2xl font-bold mb-4">Campus Location</h3>
+                <div id="map" class="relative">
+                    <div id="map-loading" class="absolute inset-0 flex items-center justify-center bg-gray-700 bg-opacity-70 z-10">
+                        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-gray-100 p-6 rounded-lg">
+                <h3 class="text-2xl font-bold mb-4">Available Courses</h3>
+                <div id="coursesList" class="grid grid-cols-1 gap-4"></div>
+            </div>
+        </section>
+
+        <!-- Events Section -->
+        <section class="bg-gray-800 p-6 rounded-lg mb-8">
+            <h3 class="text-2xl font-bold mb-4">Upcoming Events</h3>
+            <div id="eventsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </section>
+
+        <!-- Site Viewer Section -->
+        <section class="bg-gray-800 p-6 rounded-lg mb-8">
+            <h3 class="text-2xl font-bold mb-4">Campus Facility Viewer</h3>
+            
+            <div class="facility-viewer">
+                <!-- Floor Selection -->
+                <div class="mb-6">
+                    <h4 class="text-lg font-bold mb-3">Select Floor/Area</h4>
+                    <div class="flex flex-wrap gap-2" id="floorButtons">
+                        <button class="facility-btn bg-gray-700 px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors" data-floor="ground">Ground Floor</button>
+                        <button class="facility-btn bg-gray-700 px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors" data-floor="first">First Floor</button>
+                        <button class="facility-btn bg-gray-700 px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors" data-floor="second">Second Floor</button>
+                        <button class="facility-btn bg-gray-700 px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors" data-floor="third">Third Floor</button>
+                        <button class="facility-btn bg-gray-700 px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors" data-floor="fourth">Fourth Floor</button>
+                        <button class="facility-btn bg-gray-700 px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors" data-floor="fifth">Fifth Floor</button>
+                        <button class="facility-btn bg-gray-700 px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors" data-floor="library">Library</button>
+                        <button class="facility-btn bg-gray-700 px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors" data-floor="cafeteria">Cafeteria</button>
+                        <button class="facility-btn bg-gray-700 px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors" data-floor="labs">Labs</button>
+                    </div>
+                </div>
+                
+                <!-- Image Viewer -->
+                <div class="relative">
+                    <!-- Update the image container and image styles -->
+                    <div id="facilityImageContainer" class="bg-gray-900 rounded-lg overflow-hidden">
+                        <div id="facilityLoading" class="absolute inset-0 flex items-center justify-center bg-gray-800 bg-opacity-80 z-10">
+                            <p class="text-lg">Select a floor or facility to view</p>
+                        </div>
+                        <img id="facilityImage" class="w-full h-96 object-contain hidden" alt="Facility Image">
+                    </div>
+                    
+                    <!-- Image Navigation -->
+                    <div class="flex justify-between mt-4 items-center">
+                        <button id="prevImage" class="bg-gray-700 p-2 rounded-full hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        <div id="facilityCaption" class="text-center text-lg font-medium"></div>
+                        <button id="nextImage" class="bg-gray-700 p-2 rounded-full hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Admin Modal -->
+    <div id="adminModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden z-50">
+        <div class="bg-gray-800 p-6 rounded-lg max-w-2xl w-full">
+            <div class="flex justify-between items-start mb-4">
+                <h3 class="text-2xl font-bold">Course & Event Management</h3>
+                <button id="closeAdminModal" class="text-gray-400 hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Courses Management -->
+                <div>
+                    <h4 class="text-xl font-bold mb-4">Manage Courses</h4>
+                    <form id="courseForm" class="space-y-4">
+                        <input type="text" id="courseName" placeholder="Course Name" class="w-full p-2 bg-gray-700 text-white rounded">
+                        <textarea id="courseDescription" placeholder="Course Description" class="w-full p-2 bg-gray-700 text-white rounded"></textarea>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded">Add Course</button>
+                    </form>
+                </div>
+                
+                <!-- Events Management -->
+                <div>
+                    <h4 class="text-xl font-bold mb-4">Manage Events</h4>
+                    <form id="eventForm" class="space-y-4">
+                        <input type="text" id="eventTitle" placeholder="Event Title" class="w-full p-2 bg-gray-700 text-white rounded">
+                        <input type="date" id="eventDate" class="w-full p-2 bg-gray-700 text-white rounded">
+                        <textarea id="eventDescription" placeholder="Event Description" class="w-full p-2 bg-gray-700 text-white rounded"></textarea>
+                        <button type="submit" class="bg-green-600 hover:bg-green-500 px-4 py-2 rounded">Add Event</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const college = JSON.parse(localStorage.getItem('selectedCollege'));
+        const adminEmails = ['kesav@admin.com', 'admin@example.com','college@admin.edu'];
+        
+        // Fix API_BASE_URL to handle both localhost and 127.0.0.1
+        const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 
+            'http://localhost:3000' : '';
+        
+        let map;
+        
+        // Get the proper college ID - support both Tour and legacy College models
+        const collegeId = college?._id || college?.id;
+
+        // Helper function for API calls
+        async function apiCall(endpoint, method = 'GET', data = null) {
+            try {
+                // Log full URL for debugging
+                const fullUrl = `${API_BASE_URL}${endpoint}`;
+                console.log(`Making ${method} request to: ${fullUrl}`);
+                
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                };
+
+                if (data && (method === 'POST' || method === 'PUT')) {
+                    options.body = JSON.stringify(data);
+                }
+
+                // Debug info
+                if (data) console.log('Request data:', data);
+
+                const response = await fetch(fullUrl, options);
+                
+                // Log response status for debugging
+                console.log(`API response status: ${response.status}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`API error response: ${errorText}`);
+                    throw new Error(`API error (${response.status}): ${errorText}`);
+                }
+                
+                // Only try to parse JSON if there's content
+                if (response.status !== 204) {
+                    const text = await response.text();
+                    console.log('API response text:', text.substring(0, 100) + (text.length > 100 ? '...' : ''));
+                    return text ? JSON.parse(text) : null;
+                }
+                
+                return null;
+            } catch (error) {
+                console.error(`API error (${endpoint}):`, error);
+                throw error;
+            }
+        }
+
+        // Course Management
+        async function loadCourses() {
+            const coursesList = document.getElementById('coursesList');
+            coursesList.innerHTML = '<div class="text-center py-8">Loading courses...</div>';
+            
+            try {
+                // Use ONLY the tours API endpoint
+                const courses = await apiCall(`/api/tours/${collegeId}/courses`);
+                
+                if (!courses || courses.length === 0) {
+                    coursesList.innerHTML = `
+                        <div class="text-center py-8 text-gray-400">
+                            <p>No courses available for this college.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Check if current user is admin
+                const currentUser = localStorage.getItem('userEmail');
+                const isAdmin = adminEmails.includes(currentUser);
+                
+                coursesList.innerHTML = courses.map((course) => `
+                    <div class="course-card bg-gray-700 p-4 rounded-lg hover:bg-gray-600">
+                        <div class="flex justify-between">
+                            <div>
+                                <h4 class="font-bold mb-2">${course.name}</h4>
+                                <p class="text-gray-300 text-sm">${course.description}</p>
+                            </div>
+                            ${isAdmin ? `
+                                <button class="delete-course text-red-400 hover:text-red-600" data-id="${course._id}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `).join('');
+                
+                // Add event listeners to delete buttons
+                if (isAdmin) {
+                    document.querySelectorAll('.delete-course').forEach(button => {
+                        button.addEventListener('click', function() {
+                            const courseId = this.getAttribute('data-id');
+                            deleteCourse(courseId);
+                        });
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching courses:', error);
+                coursesList.innerHTML = `
+                    <div class="text-center py-8 text-red-400">
+                        <p>Failed to load courses. Please try again later.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Delete course function - use tours API
+        async function deleteCourse(courseId) {
+            if (confirm('Are you sure you want to delete this course?')) {
+                try {
+                    await apiCall(`/api/tours/${collegeId}/courses/${courseId}`, 'DELETE');
+                    // Reload courses after deletion
+                    await loadCourses();
+                } catch (error) {
+                    console.error('Error deleting course:', error);
+                    showErrorMessage("Failed to delete course. Please try again.");
+                }
+            }
+        }
+
+        // Event Management - updated to use tours API
+        async function loadEvents() {
+            const eventsList = document.getElementById('eventsList');
+            eventsList.innerHTML = '<div class="text-center py-8">Loading events...</div>';
+            
+            try {
+                // Use ONLY the tours API
+                const events = await apiCall(`/api/tours/${collegeId}/events`);
+                
+                // Check if current user is admin
+                const currentUser = localStorage.getItem('userEmail');
+                const isAdmin = adminEmails.includes(currentUser);
+                
+                if (!events || events.length === 0) {
+                    eventsList.innerHTML = `
+                        <div class="text-center py-8 text-gray-400 col-span-full">
+                            <p>No upcoming events for this college.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                eventsList.innerHTML = events.map(event => `
+                    <div class="bg-gray-700 p-4 rounded-lg">
+                        <div class="flex justify-between">
+                            <h4 class="font-bold mb-2">${event.title}</h4>
+                            ${isAdmin ? `
+                                <button class="delete-event text-red-400 hover:text-red-600" data-id="${event._id}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            ` : ''}
+                        </div>
+                        <p class="text-blue-400 text-sm mb-2">${new Date(event.date).toDateString()}</p>
+                        <p class="text-gray-300 text-sm">${event.description}</p>
+                    </div>
+                `).join('');
+                
+                // Add event listeners for delete event buttons
+                if (isAdmin) {
+                    document.querySelectorAll('.delete-event').forEach(button => {
+                        button.addEventListener('click', function() {
+                            const eventId = this.getAttribute('data-id');
+                            deleteEvent(eventId);
+                        });
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching events:', error);
+                eventsList.innerHTML = `
+                    <div class="text-center py-8 text-red-400 col-span-full">
+                        <p>Failed to load events. Please try again later.</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Delete event function - use tours API
+        async function deleteEvent(eventId) {
+            if (confirm('Are you sure you want to delete this event?')) {
+                try {
+                    await apiCall(`/api/tours/${collegeId}/events/${eventId}`, 'DELETE');
+                    // Reload events after deletion
+                    await loadEvents();
+                } catch (error) {
+                    console.error('Error deleting event:', error);
+                    showErrorMessage("Failed to delete event. Please try again.");
+                }
+            }
+        }
+
+        // Updated to use API - use tours API
+        document.getElementById('courseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            const originalText = submitButton.textContent;
+            submitButton.textContent = 'Adding...';
+            submitButton.disabled = true;
+            
+            try {
+                const course = {
+                    name: document.getElementById('courseName').value,
+                    description: document.getElementById('courseDescription').value,
+                    college: collegeId  // Use the proper ID
+                };
+                
+                // Send to tours API
+                await apiCall(`/api/tours/${collegeId}/courses`, 'POST', course);
+                
+                // Reload courses
+                await loadCourses();
+                e.target.reset();
+                
+                // Show success effect
+                submitButton.textContent = 'Added!';
+                submitButton.classList.add('bg-green-600');
+                setTimeout(() => {
+                    submitButton.textContent = originalText;
+                    submitButton.classList.remove('bg-green-600');
+                    submitButton.disabled = false;
+                }, 2000);
+            } catch (error) {
+                console.error('Error adding course:', error);
+                submitButton.textContent = originalText;
+                submitButton.disabled = false;
+                showErrorMessage("Failed to add course. Please try again.");
+            }
+        });
+
+        // Updated to use API - use tours API
+        document.getElementById('eventForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            const originalText = submitButton.textContent;
+            submitButton.textContent = 'Adding...';
+            submitButton.disabled = true;
+            
+            try {
+                const event = {
+                    title: document.getElementById('eventTitle').value,
+                    date: document.getElementById('eventDate').value,
+                    description: document.getElementById('eventDescription').value,
+                    college: collegeId  // Use the proper ID
+                };
+                
+                // Send to tours API
+                await apiCall(`/api/tours/${collegeId}/events`, 'POST', event);
+                
+                // Reload events
+                await loadEvents();
+                e.target.reset();
+                
+                // Show success effect
+                submitButton.textContent = 'Added!';
+                submitButton.classList.add('bg-green-600');
+                setTimeout(() => {
+                    submitButton.textContent = originalText;
+                    submitButton.classList.remove('bg-green-600');
+                    submitButton.disabled = false;
+                }, 2000);
+            } catch (error) {
+                console.error('Error adding event:', error);
+                submitButton.textContent = originalText;
+                submitButton.disabled = false;
+                showErrorMessage("Failed to add event. Please try again.");
+            }
+        });
+
+        function showErrorMessage(message) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'bg-red-800 bg-opacity-20 border border-red-600 p-4 rounded-lg mb-4';
+            alertDiv.innerHTML = message;
+            
+            // Insert after main nav
+            const main = document.querySelector('main');
+            main.insertBefore(alertDiv, main.firstChild);
+            
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => alertDiv.remove(), 5000);
+        }
+
+        // Initialize Dashboard
+        async function initDashboard() {
+            if (!college) {
+                window.location.href = 'tours.html';
+                return;
+            }
+            
+            // Debug college data
+            console.log('College data:', college);
+            console.log('College ID used:', collegeId);
+            // Add this line in your initDashboard function before map initialization
+            console.log('Full college data:', JSON.stringify(college));
+
+            // Load College Info - properly handle missing fields
+            document.getElementById('collegeName').textContent = college.name || 'Unknown';
+            document.getElementById('collegeDescription').textContent = college.description || 'No description available';
+            document.getElementById('collegeEstablished').textContent = college.established || 'Unknown';
+            document.getElementById('collegeStudents').textContent = college.students || 'Unknown';
+            document.getElementById('collegeType').textContent = college.type || 'College';
+            document.getElementById('collegeImage').src = college.image || 'https://via.placeholder.com/300';
+            
+            // Add rating stars
+            document.getElementById('collegeRating').innerHTML = '★★★★☆';
+            
+            // Initialize Map with error handling
+            try {
+                // Debug map container
+                const mapContainer = document.getElementById('map');
+                console.log('Map container dimensions:', mapContainer.offsetWidth, mapContainer.offsetHeight);
+                console.log('Map container visibility:', window.getComputedStyle(mapContainer).display);
+                
+                if (!mapboxgl) {
+                    console.error('Mapbox GL JS not loaded');
+                    throw new Error('Mapbox GL JS not loaded');
+                }
+                
+                // Make sure the map container is fully loaded and visible
+                mapboxgl.accessToken = 'pk.eyJ1IjoiZGFyc2hhbjY5NDI5IiwiYSI6ImNtN3lrM2NhNzBiMG4ybHNhenlvOHB4b24ifQ.WS2BMf7wUVaubLjC3VrpKw';
+                
+                // Debug the location value
+                console.log('Map location:', college.location);
+                
+                // Replace the location detection section with this improved version
+
+                // College location database - add coordinates for common colleges
+                const collegeLocations = {
+                    'MIT': [-71.0942, 42.3601],
+                    'Harvard University': [-71.1167, 42.3770],
+                    'Stanford University': [-122.1697, 37.4275],
+                    'University of California, Berkeley': [-122.2585, 37.8719],
+                    'Princeton University': [-74.6514, 40.3431],
+                    'Columbia University': [-73.9626, 40.8075],
+                    'Yale University': [-72.9223, 41.3163],
+                    'University of Pennsylvania': [-75.1932, 39.9522],
+                    'California Institute of Technology': [-118.1253, 34.1377],
+                    'University of Chicago': [-87.5987, 41.7886]
+                    // Add more colleges as needed
+                };
+
+                console.log('Map location check - college object:', college);
+
+                // Use safe default coordinates if location is invalid or missing
+                let mapCenter = [77.6576138033847, 13.118068687033817]; // Default to Bangalore, India
+
+                // First try: Check if location is already available in proper format
+                if (college.location && 
+                    Array.isArray(college.location) && 
+                    college.location.length === 2 && 
+                    !isNaN(college.location[0]) && 
+                    !isNaN(college.location[1])) {
+                    console.log('Using stored college location coordinates:', college.location);
+                    mapCenter = college.location;
+                }
+                // Second try: Check for longitude/latitude fields
+                else if (college.longitude !== undefined && college.latitude !== undefined &&
+                        !isNaN(college.longitude) && !isNaN(college.latitude)) {
+                    console.log('Using college longitude/latitude fields:', college.longitude, college.latitude);
+                    mapCenter = [parseFloat(college.longitude), parseFloat(college.latitude)];
+                }
+                // Third try: Look up by college name in our database
+                else if (college.name && collegeLocations[college.name]) {
+                    console.log('Using predefined coordinates for', college.name);
+                    mapCenter = collegeLocations[college.name];
+                }
+                // Fallback: Use default coordinates
+                else {
+                    console.warn('No location data found for', college.name, '- using default coordinates');
+                }
+
+                console.log('Final map center coordinates:', mapCenter);
+                
+                // Force explicit height on container
+                mapContainer.style.height = '400px';
+                mapContainer.style.display = 'block';
+                
+                // Create map with a small delay to ensure container is ready
+                setTimeout(() => {
+                    // IMPORTANT FIX: Force coordinates to be Bangalore if they're 0,0 or invalid
+                    if (!mapCenter || mapCenter.length !== 2 || 
+                        !isFinite(mapCenter[0]) || !isFinite(mapCenter[1]) ||
+                        (mapCenter[0] === 0 && mapCenter[1] === 0)) {
+                        console.warn("Invalid coordinates detected, forcing to Bangalore coordinates");
+                        mapCenter = [77.6576138033847, 13.118068687033817]; // Force Bangalore coordinates
+                    }
+                    
+                    console.log('Creating map with final coordinates:', mapCenter);
+                    
+                    map = new mapboxgl.Map({
+                        container: 'map',
+                        style: 'mapbox://styles/mapbox/dark-v10', // Dark theme matches your dashboard
+                        center: mapCenter,
+                        zoom: 12,
+                        attributionControl: false
+                    });
+                    
+                    // Add controls and marker after map loads
+                    map.on('load', function() {
+                        console.log('Map loaded successfully');
+                        // Remove loading indicator
+                        document.getElementById('map-loading').style.display = 'none';
+                        // Add navigation controls
+                        map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+                        
+                        // Add marker - also force the same coordinates for the marker
+                        new mapboxgl.Marker({
+                            color: '#3b82f6' // Blue marker to match your theme
+                        })
+                        .setLngLat(mapCenter)
+                        .setPopup(new mapboxgl.Popup({ offset: 25 })
+                            .setHTML(`<h3 class="font-bold">${college.name || 'College'}</h3>
+                                     <p class="text-sm">${college.address || ''}</p>`))
+                        .addTo(map);
+                    });
+                }, 100);
+            } catch (err) {
+                console.error('Error setting up map:', err);
+                document.getElementById('map').innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-full bg-gray-700 rounded-lg p-4">
+                        <p class="text-red-400">Map could not be displayed: ${err.message}</p>
+                    </div>
+                `;
+            }
+
+            // Check Admin Status
+            const currentUser = localStorage.getItem('userEmail');
+            if (adminEmails.includes(currentUser)) {
+                document.getElementById('adminPanelBtn').classList.remove('hidden');
+            }
+
+            // Load Courses & Events from API
+            try {
+                await loadCourses();
+                await loadEvents();
+            } catch (error) {
+                console.error("Error loading data:", error);
+                showErrorMessage("Failed to load courses or events. Please try again later.");
+            }
+
+            // Campus Facility Viewer
+            function initFacilityViewer() {
+                // Sample facility data - in a real application, this would come from your API
+                const facilityData = {
+                    ground: {
+                        name: "Ground Floor",
+                        images: [
+                            { src: "../img/ground-floor.jpg", caption: "Ground Floor Blueprint" },
+                            { src: "../img/ground-floor-pic.jpg", caption: "Main Entrance Hall View" }
+                        ]
+                    },
+                    first: {
+                        name: "First Floor",
+                        images: [
+                            { src: "../img/first-floor.jpg", caption: "First Floor Blueprint" },
+                            { src: "https://images.unsplash.com/photo-1592818868295-f5fdcd72be31?ixlib=rb-1.2.1&auto=format&fit=crop&w=1650&q=80", caption: "Study Rooms View" }
+                        ]
+                    },
+                    second: {
+                        name: "Second Floor",
+                        images: [
+                            { src: "../img/second-floor.jpg", caption: "Second Floor Blueprint" },
+                            { src: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?ixlib=rb-1.2.1&auto=format&fit=crop&w=1650&q=80", caption: "Faculty Offices View" }
+                        ]
+                    },
+                    third: {
+                        name: "Third Floor",
+                        images: [
+                            { src: "../img/third-floor.jpg", caption: "Third Floor Blueprint" },
+                            { src: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?ixlib=rb-1.2.1&auto=format&fit=crop&w=1650&q=80", caption: "Faculty Offices View" }
+                        ]
+                    },
+                    fourth: {
+                        name: "Fourth Floor",
+                        images: [
+                            { src: "../img/fourth-floor.jpg", caption: "Fourth Floor Blueprint" },
+                            { src: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?ixlib=rb-1.2.1&auto=format&fit=crop&w=1650&q=80", caption: "Faculty Offices View" }
+                        ]
+                    },
+                    fifth: {
+                        name: "Fifth Floor",
+                        images: [
+                            { src: "../img/fifth-floor.jpg", caption: "Fifth Floor Blueprint" },
+                            { src: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?ixlib=rb-1.2.1&auto=format&fit=crop&w=1650&q=80", caption: "Faculty Offices View" }
+                        ]
+                    },
+                    library: {
+                        name: "Library",
+                        images: [
+                            { src: "../img/library-blueprint.jpg", caption: "Library Floor Plan" },
+                            { src: "../img/library.jpg", caption: "Reading Area View" }
+                        ]
+                    },
+                    cafeteria: {
+                        name: "Cafeteria",
+                        images: [
+                            { src: "../img/cafeteria-blueprint.jpg", caption: "Cafeteria Floor Plan" },
+                            { src: "../img/cafeteria.jpeg", caption: "Dining Area View" }
+                        ]
+                    },
+                    labs: {
+                        name: "Labs",
+                        images: [
+                            { src: "../img/labs-blueprint.jpg", caption: "Labs Floor Plan" },
+                            { src: "../img/labs.jpg", caption: "Computer Lab View" }
+                        ]
+                    }
+                };
+
+                // Elements
+                const floorButtons = document.querySelectorAll('.facility-btn');
+                const facilityImage = document.getElementById('facilityImage');
+                const facilityLoading = document.getElementById('facilityLoading');
+                const facilityCaption = document.getElementById('facilityCaption');
+                const prevButton = document.getElementById('prevImage');
+                const nextButton = document.getElementById('nextImage');
+
+                // State
+                let currentFacility = null;
+                let currentImageIndex = 0;
+
+                // Display the selected facility
+                function showFacility(floorKey) {
+                    // Reset state
+                    currentFacility = floorKey;
+                    currentImageIndex = 0;
+                    
+                    // Update active button
+                    floorButtons.forEach(btn => {
+                        if (btn.dataset.floor === floorKey) {
+                            btn.classList.add('bg-blue-600');
+                            btn.classList.remove('bg-gray-700');
+                        } else {
+                            btn.classList.remove('bg-blue-600');
+                            btn.classList.add('bg-gray-700');
+                        }
+                    });
+                    
+                    showImage();
+                }
+
+                // Display the current image
+                function showImage() {
+                    const facility = facilityData[currentFacility];
+                    if (!facility || !facility.images || facility.images.length === 0) {
+                        facilityLoading.innerHTML = '<p class="text-red-400">No images available</p>';
+                        facilityLoading.classList.remove('hidden');
+                        facilityImage.classList.add('hidden');
+                        facilityCaption.textContent = '';
+                        return;
+                    }
+                    
+                    const image = facility.images[currentImageIndex];
+                    
+                    // Show loading
+                    facilityLoading.innerHTML = '<div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>';
+                    facilityLoading.classList.remove('hidden');
+                    
+                    // Load image
+                    facilityImage.src = image.src;
+                    facilityImage.alt = `${facility.name} - ${image.caption}`;
+                    
+                    facilityImage.onload = () => {
+                        // Hide loading when image is ready
+                        facilityLoading.classList.add('hidden');
+                        facilityImage.classList.remove('hidden');
+                        
+                        // Create a more descriptive caption
+                        const isBlueprint = image.caption.includes("Blueprint") || image.caption.includes("Floor Plan");
+                        const imageType = isBlueprint ? "Blueprint" : "View";
+                        
+                        // Clear existing caption
+                        facilityCaption.innerHTML = '';
+                        
+                        // Add main text
+                        const mainText = document.createElement('span');
+                        mainText.textContent = `${facility.name}: ${image.caption}`;
+                        facilityCaption.appendChild(mainText);
+                        
+                        // Add badge indicating blueprint or view
+                        const badge = document.createElement('span');
+                        badge.className = isBlueprint ? 
+                            "ml-2 text-xs px-2 py-1 bg-blue-600 rounded-full" : 
+                            "ml-2 text-xs px-2 py-1 bg-green-600 rounded-full";
+                        badge.textContent = imageType;
+                        facilityCaption.appendChild(badge);
+                        
+                        // Update navigation buttons
+                        prevButton.disabled = currentImageIndex === 0;
+                        nextButton.disabled = currentImageIndex === facility.images.length - 1;
+                    };
+                    
+                    facilityImage.onerror = () => {
+                        facilityLoading.innerHTML = '<p class="text-red-400">Failed to load image: ' + image.src + '</p>';
+                        facilityImage.classList.add('hidden');
+                    };
+                }
+
+                // Navigate images
+                prevButton.addEventListener('click', () => {
+                    if (currentFacility && currentImageIndex > 0) {
+                        currentImageIndex--;
+                        showImage();
+                    }
+                });
+                
+                nextButton.addEventListener('click', () => {
+                    if (currentFacility && currentImageIndex < facilityData[currentFacility].images.length - 1) {
+                        currentImageIndex++;
+                        showImage();
+                    }
+                });
+                
+                // Add click handlers to buttons
+                floorButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        showFacility(button.dataset.floor);
+                    });
+                });
+                
+                // Disable navigation initially
+                prevButton.disabled = true;
+                nextButton.disabled = true;
+            }
+
+            // Add facility viewer initialization to the bottom of the initDashboard function
+            // Add this before the final closing brace of initDashboard()
+            try {
+                initFacilityViewer();
+            } catch (error) {
+                console.error("Error initializing facility viewer:", error);
+            }
+        }
+
+        // Admin Panel Functions
+        document.getElementById('adminPanelBtn').addEventListener('click', () => {
+            document.getElementById('adminModal').classList.remove('hidden');
+        });
+
+        document.getElementById('closeAdminModal').addEventListener('click', () => {
+            document.getElementById('adminModal').classList.add('hidden');
+        });
+
+        // Logout
+        document.getElementById('logout').addEventListener('click', () => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('selectedCollege');
+            window.location.href = 'login.html';
+        });
+
+        // Initialize
+        initDashboard();
+    });
+</script>
+<script src="../assets/scripts/theme.js"></script>
+</body>
+</html>
